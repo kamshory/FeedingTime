@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Feeding Time</title>
+    <style>
+        body, htm{
+            scrollbar-width: none;
+            scroll-padding: 0;
+        }
+        .feeding-time{
+            width: 540px;
+            height: 540px;
+            box-sizing: border-box;
+            border-radius: 50%;
+            position: relative;
+        }
+        .feeding-time .feeding-time-item{
+            box-sizing: border-box;
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #33cc33;  
+            display: none;
+        }
+        .feeding-time .feeding-time-item[data-selected="true"]{
+            background-color: transparent; 
+            border: 1px solid #33cc33; 
+        }
+        .feeding-time, .feeding-time-item{
+            -webkit-touch-callout: none; /* iOS Safari */
+              -webkit-user-select: none; /* Safari */
+               -khtml-user-select: none; /* Konqueror HTML */
+                 -moz-user-select: none; /* Old versions of Firefox */
+                  -ms-user-select: none; /* Internet Explorer/Edge */
+                      user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+        }
+        .container{
+            position: relative;
+            width: 540px;
+            height: 540px;
+        }
+        .background{
+            position: absolute;
+            z-index: -2;
+            top: 0px;
+        }
+        canvas#canvas{
+            width: 540px;
+            height: 540px;
+        }
+        .preview{
+            position: absolute;
+            z-index: -1;
+            left: calc(50% - 30px);
+            top: calc(50% - 9px);
+            width: 60px;
+            color: #555555;
+        }
+        .preview > div{
+            width: 100%;
+            text-align: center;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+        }
+        .spinner{
+            display: inline-block;
+        }
+        .spinner button{
+            margin: 0;
+            padding: 5px 12px;
+        }
+        .spinner button:nth-child(1){
+            border-style: solid;
+            border-color: #999999;
+            border-width: 1px 0px 1px 1px;
+            border-top-left-radius: 5px;
+            border-bottom-left-radius: 5px;
+        }
+        .spinner button:nth-child(2){
+            border-style: solid;
+            border-color: #999999;
+            border-width: 1px 1px 1px 0px;
+            border-top-right-radius: 5px;
+            border-bottom-right-radius: 5px;
+        }
+        .fish-pond{
+            position: relative;
+            overflow: hidden;
+            padding-top: 60px;
+        }
+        .fish-pond-outer{
+            perspective: 1000px;
+            position: relative;
+            margin-top: -90px;
+            margin-bottom: -80px;
+        }
+        .fish-pond-inner{
+            border: 16px solid #115481;
+            background-color: #11548126;
+            margin-left: calc(8%);            
+            margin-right: calc(8%);            
+            transform: rotateX(70deg);
+            box-sizing: border-box;
+            border-radius: 5px;
+        }
+        .fish-pond-water{
+            background: url(water.gif) center center;
+            height: 240px;
+            opacity: 0.55;
+        }
+        .fish-pond-content{
+            height: 80px;
+            width: 100%;
+            position: absolute;
+            z-index: -1;
+            top: 100px;
+            background-size: contain;          
+        }
+        .fish-pond-grass{
+            height: 80px;
+            width: 100%;
+            position: absolute;
+            z-index: 1;
+            top: 110px;
+            background: url(grass.png) no-repeat calc(50% - 120px) 30px;
+            background-size: contain;    
+        }
+        .fish-pond-content:nth-child(1){
+            background: url("lele.png") no-repeat calc(65% + 0px) 10px;  
+            background-size: contain;
+        }
+        .fish-pond-content:nth-child(2){
+            background: url("output-onlinegiftools(6).gif") no-repeat calc(35% + 0px) 5px;  
+            background-size: contain;
+        }
+        fieldset{
+            margin: 10px 0;
+        }
+        .feeder-controller-container{
+            text-align: center;
+            margin-bottom: -5px;
+            z-index: 100;
+            position: absolute;
+            width: 100%;
+            height: 60px;
+            top: 0px;
+        }
+        .feeder-controller{
+            background: url(android2.png) no-repeat center;
+            background-size: contain;
+            width: 50px;
+            height: 60px;
+            display: inline-block;
+        }
+        .feeder-controller > a{
+            display: block;
+            width: 50px;
+            height: 60px;
+            position: relative;
+        }
+        .feeder-controller > a::before{
+            content: "";
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    </style>
+    <script
+    src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+    crossorigin="anonymous"></script>
+    <script>
+        var snap = 0; 
+        $(document).ready(function(e1){
+            snap = parseFloat($('#snap_second').val());
+            $(document).on('change', '#snap_second', function(e2){
+                snap = parseFloat($(this).val());
+            });
+            createBackground();
+
+            $('.feeding-time').find('.feeding-time-item').each(function(idx){
+                initFeedingTime($(this), idx);
+            });
+
+            $(document).on('mousedown', '.feeding-time .feeding-time-item', function(e2){
+                onMouseDown($(this));
+            });
+            $(document).on('mouseup', '.feeding-time', function(e2){
+                onMouseUp($(this));              
+            });
+            $(document).on('mouseover', '.feeding-time-item', function(e2){
+               onMouseOver($(this)); 
+            });
+            $(document).on('mouseout', '.feeding-time-item', function(e2){
+                onMouseOut($(this));
+            });
+            $(document).on('mousemove', '.feeding-time', function(e2){
+                onMouseMove($(this), e2, e2.pageX, e2.pageY);
+            });
+            $(document).on("touchstart", '.feeding-time .feeding-time-item', function(e2) {
+                document.documentElement.style.overflow = 'hidden';
+                e2.stopPropagation();
+                //var changedTouches = e2.originalEvent.changedTouches;               
+                //var touch = changedTouches[0];
+                onMouseDown($(this));
+                //onMouseMove($(this), e2, touch.pageX, touch.pageY);
+                var time = $(this).attr('data-title')
+                $('.time-preview').text(time);
+                $('.time-preview').css('display', 'block');
+            });          
+            $(document).on("touchmove", '.feeding-time', function(e2) {
+                e2.stopPropagation();
+                var changedTouches = e2.originalEvent.changedTouches;            
+                var touch = changedTouches[0];
+                onMouseMove($(this), e2, touch.pageX, touch.pageY);
+            });            
+            $(document).on("touchend", '.feeding-time', function(e2) {
+                document.documentElement.style.overflow = 'auto';
+                e2.stopPropagation();
+                e2.preventDefault();           
+                onMouseUp($(this));
+            });          
+            $(document).on("touchcancel", '.feeding-time', function(e) {
+                e.stopPropagation();
+                e.preventDefault();             
+                onMouseUp($(this));
+            });
+            $(document).on('click', '.spinner button:first', function(e2){
+                rotate(-3.75);
+            });
+            $(document).on('click', '.spinner button:last', function(e2){
+                rotate(3.75);
+            });
+            $(document).on('click', '.feeder-controller > a', function(e2){
+                var id = $(this).attr('data-feeder-controller-id');
+                alert(id)
+            });
+        });
+        function getMax(radius)
+        {
+            return radius - 40;
+        }
+        function getRadius(max, idx)
+        {
+            return max - (18 * idx);
+        }
+        function initFeedingTime(obj, idx)
+        {
+            var radius = obj.parent().width()/2;
+            var centerX = radius;
+            var centerY = radius;         
+            var rad = max - (18 * idx);
+            var max = getMax(radius);
+            var rad = getRadius(max, idx);
+            obj.attr('data-idx', idx);
+            var angle = idx * 360 / (obj.siblings().length + 1);
+            var angle2 = obj.find('input[type="hidden"]').val();
+            if(angle2 != '')
+            {
+                angle = parseFloat(angle2);
+            }
+            angle = fixAngle(angle); 
+            obj.find('input[type="hidden"]').val(angle);
+            obj.attr('data-title', angle2time(angle));
+            renderTime(obj, centerX, centerY, rad, angle);
+            obj.css({'display':'block'});
+        }
+        function onMouseOut(obj)
+        {
+            $('.time-preview').css('display', 'none');
+        }
+        function onMouseDown(obj)
+        {
+            obj.siblings().each(function(e3){
+                $(this).removeAttr('data-selected');
+            });
+            obj.attr('data-selected', 'true');
+        }
+        function onMouseOver(obj)
+        {
+            var time = obj.attr('data-title')
+            $('.time-preview').text(time);
+            $('.time-preview').css('display', 'block');
+        }
+        function onMouseMove(container, e2, x, y)
+        {
+            var radius = parseFloat(container.width())/2;
+            var centerX = radius;
+            var centerY = radius;
+            var obj = container.find('.feeding-time-item[data-selected="true"]');
+            if(obj.length > 0)
+            {
+                var clientX = x - container.offset().left;
+                var clientY = y - container.offset().top;
+                var dx = clientX - centerX;
+                var dy = clientY - centerY;
+                var max = getMax(radius);
+                var idx = parseInt(obj.attr('data-idx'));
+                var rad = getRadius(max, idx);
+                var angle = rad2ded(Math.atan2(dy, dx)) + 90;   
+                var time = angle2time(angle);
+                $('.time-preview').text(time);
+                $('.time-preview').css('display', 'block');
+                obj.attr('data-title', time);
+                obj.find('input[type="hidden"]').val(angle);                 
+                renderTime(obj, centerX, centerY, rad, angle);
+            }
+        }
+        function onMouseUp(container)
+        {
+            var radius = container.width()/2;
+            var centerX = radius;
+            var centerY = radius;
+            var obj = container.find('.feeding-time-item[data-selected="true"]');
+            if(snap > 0 && obj.length)
+            {
+                var max = getMax(radius);
+                var idx = parseInt(obj.attr('data-idx'));
+                var rad = getRadius(max, idx);
+                var angle = parseFloat(obj.find('input[type="hidden"]').val());   
+                angle = fixAngle(angle); 
+                var seconds = angle2seconds(angle);
+                seconds = snapSecond(seconds, snap);
+                angle = seconds2Angle(seconds);
+                document.title = [angle]
+                var time = seconds2time(seconds);
+                $('.time-preview').text(time);
+                $('.time-preview').css('display', 'block');
+                obj.attr('data-title', time);
+                obj.find('input[type="hidden"]').val(angle);                 
+                renderTime(obj, centerX, centerY, rad, angle);
+                obj.removeAttr('data-selected');
+                setTimeout(function(){
+                    $('.time-preview').fadeOut('fast');
+                }, 600);
+            }
+            else
+            {
+                container.find('.feeding-time-item').each(function(e3){
+                    $(this).removeAttr('data-selected');
+                });
+                $('.time-preview').css('display', 'none');
+            }
+        }
+        function seconds2Angle(seconds)
+        {
+            return seconds * 360 / 86400;
+        }
+        function angle2seconds(angle)
+        {
+            return angle * 86400 / 360;
+        }
+        function snapSecond(seconds, snapSec)
+        {
+            if(snapSec <= 0)
+            {
+                return seconds;
+            }
+            return (Math.round(seconds/snapSec)) * snapSec;
+        }
+        function rotate(deg)
+        {
+            var obj1 = $('.feeding-time');
+            var radius = obj1.width()/2;
+            var centerX = radius;
+            var centerY = radius;
+            var max = getMax(radius);
+            obj1.find('.feeding-time-item').each(function(idx){          
+                var obj = $(this);
+                var rad = getRadius(max, idx);
+                var angle = parseFloat(obj.find('input[type="hidden"]').val());   
+                angle += deg;
+                angle = fixAngle(angle);       
+                $(this).find('input[type="hidden"]').val(angle);
+                var time = angle2time(angle);
+                obj.attr('data-title', time);
+                obj.find('input[type="hidden"]').val(angle);                 
+                renderTime(obj, centerX, centerY, rad, angle);
+            });
+        }
+        function fixAngle(angle)
+        {
+            if(angle >= 360)
+            {
+                angle -= 360;
+            }
+            if(angle < 0)
+            {
+                angle += 360;
+            }
+            return angle;
+        }
+        function angle2time(angle)
+        {
+            var hour = angle * 24 / 360;
+            if(hour < 0)
+            {
+                hour = hour + 24;
+            }
+            var dms = real2dms(hour);
+            var time = dmsFormat(dms);
+            return time;
+        }
+        function seconds2time(seconds)
+        {
+            var hour = seconds * 24 / 86400;
+            if(hour < 0)
+            {
+                hour = hour + 24;
+            }
+            var dms = real2dms(hour);
+            var time = dmsFormat(dms);
+            return time;
+        }
+        function dmsFormat(dms)
+        {
+            if(dms.d < 10)
+            {
+                dms.d = '0'+dms.d;
+            }
+            if(dms.m < 10)
+            {
+                dms.m = '0'+dms.m;
+            }
+            if(dms.s < 10)
+            {
+                dms.s = '0'+dms.s;
+            }
+            return dms.d+':'+dms.m+':'+dms.s;
+        }
+        function real2dms(deg) {
+            var absolute = Math.abs(deg);
+            var degrees = Math.floor(absolute);
+            var minutesNotTruncated = (absolute - degrees) * 60;
+            var minutes = Math.floor(minutesNotTruncated);
+            var seconds = Math.round((minutesNotTruncated - minutes) * 60);
+            if(seconds == 60)
+            {
+                seconds = 0;
+                minutes++;
+            }
+            if(minutes == 60)
+            {
+                minutes = 0;
+                degrees++;
+            }
+            if(degrees == 24)
+            {
+                degrees = 0;
+            }
+            return {d:degrees, m:minutes, s:seconds};
+        }      
+        function renderTime(obj, centerX, centerY, rad, angle)
+        {
+            var cx = centerX + (Math.sin(deg2rad(angle)) * rad);
+            var cy = centerY - (Math.cos(deg2rad(angle)) * rad);
+            obj.css({top:cy-obj.height()/2, left:cx-obj.width()/2});
+        }
+        function deg2rad(angle)
+        {
+            return Math.PI * angle / 180;
+        }
+        function rad2ded(angle)
+        {
+            return 180 * angle / Math.PI;
+        }
+        function createBackground()
+        {
+            var min = Math.min(window.innerWidth) - 20;
+            if(min > 540)
+            {
+                min = 540;
+            }
+            var toolRad = min/2;
+            var toolWidth = toolRad * 2;
+            var toolHeight = toolRad * 2;
+            $('#canvas').attr({'width':toolWidth, 'height':toolHeight});
+            $('.feeding-time, .container, #canvas').css({'width':toolWidth, 'height':toolHeight});
+            var rad1 = 28;
+            var rad2 = toolRad - 30;
+            var rad3 = toolRad - 14;        
+            var canvas = $('#canvas')[0];
+            var ctx = canvas.getContext('2d');
+            ctx.font = "11px Arial"; 
+            var i;
+            var cx = canvas.width / 2;
+            var cy = canvas.height / 2;         
+            ctx.strokeStyle = "#88cc99";
+            ctx.textAlign = "center"; 
+            ctx.fillStyle = "#666666";
+            ctx.beginPath();
+            for(i = 0; i<24; i++)
+            {              
+                var angle = (Math.PI * i / 12);
+                var px1 = cx + Math.cos(angle) * rad1;
+                var py1 = cy + Math.sin(angle) * rad1;
+                var px2 = cx + Math.cos(angle) * rad2;
+                var py2 = cy + Math.sin(angle) * rad2;
+                var px3 = cx + Math.cos(angle) * rad3;
+                var py3 = cy + Math.sin(angle) * rad3;              
+                ctx.moveTo(px1, py1);
+                ctx.lineTo(px2, py2);              
+                var hour = (i*360/24) + 90;
+                if(hour >= 360)
+                {
+                    hour = hour - 360;
+                }
+                var time = angle2time(hour).substr(0, 5);
+                ctx.fillText(time, px3, py3+5); 
+            }
+            ctx.stroke();
+
+            ctx.strokeStyle = "#bbcccc";
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            for(i = 0; i<24; i++)
+            {
+                var angle = (Math.PI * (i + 0.5) / 12);
+                var px1 = cx + Math.cos(angle) * rad1;
+                var py1 = cy + Math.sin(angle) * rad1;
+                var px2 = cx + Math.cos(angle) * rad2;
+                var py2 = cy + Math.sin(angle) * rad2;              
+                ctx.moveTo(px1, py1);
+                ctx.lineTo(px2, py2);              
+            }
+            ctx.stroke(); 
+            ctx.strokeStyle = "#ccdddd";
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            for(i = 0; i<24; i++)
+            {
+                var angle = (Math.PI * (i + 0.25) / 12);
+                var px1 = cx + Math.cos(angle) * rad1;
+                var py1 = cy + Math.sin(angle) * rad1;
+                var px2 = cx + Math.cos(angle) * rad2;
+                var py2 = cy + Math.sin(angle) * rad2;          
+                ctx.moveTo(px1, py1);
+                ctx.lineTo(px2, py2);            
+            }
+            for(i = 0; i<24; i++)
+            {
+                var angle = (Math.PI * (i + 0.75) / 12);
+                var px1 = cx + Math.cos(angle) * rad1;
+                var py1 = cy + Math.sin(angle) * rad1;
+                var px2 = cx + Math.cos(angle) * rad2;
+                var py2 = cy + Math.sin(angle) * rad2;
+                ctx.moveTo(px1, py1);
+                ctx.lineTo(px2, py2);       
+            }
+            ctx.stroke(); 
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "#88cc99";
+            ctx.beginPath();
+            ctx.arc(cx, cy, rad1, 0, 2 * Math.PI);
+            ctx.stroke(); 
+            ctx.beginPath();
+            ctx.arc(cx, cy, rad2, 0, 2 * Math.PI);
+            ctx.stroke(); 
+        }
+    </script>
+</head>
+<body>
+    Snap Time <select name="snap_second" id="snap_second">
+        <option value="0">None</option>
+        <option value="300">5 minutes</option>
+        <option value="900">15 minutes</option>
+        <option value="1800">30 minutes</option>
+        <option value="3600">1 hour</option>
+    </select>
+    <div class="container">
+        <div class="background"><canvas id="canvas" width="540" height="540"></canvas></div>
+        <div class="preview"><div class="time-preview"></div></div>
+        <div class="feeding-time">
+            <div class="feeding-time-item"><input type="hidden" name="feeding_time_0" value=""></div>
+            <div class="feeding-time-item"><input type="hidden" name="feeding_time_1" value=""></div>
+            <div class="feeding-time-item"><input type="hidden" name="feeding_time_2" value=""></div>
+            <div class="feeding-time-item"><input type="hidden" name="feeding_time_2" value=""></div>
+            <div class="feeding-time-item"><input type="hidden" name="feeding_time_2" value=""></div>
+            <div class="feeding-time-item"><input type="hidden" name="feeding_time_2" value=""></div>
+        </div>
+    </div>
+
+    <span class="spinner">
+        <button class="btn-sub">&lt;</button><button class="btn-add">&gt;</button>
+    </span>
+
+    <style>
+        
+    </style>
+
+    <fieldset>
+        <legend>Kolam 1</legend>
+        <div class="fish-pond">
+            <div class="feeder-controller-container">
+                <div class="feeder-controller"><a href="javascript:;" data-feeder-controller-id="1"></a></div>
+                <div class="feeder-controller"><a href="javascript:;" data-feeder-controller-id="2"></a></div>
+                <div class="feeder-controller"><a href="javascript:;" data-feeder-controller-id="3"></a></div>
+            </div>
+            <div class="fish-pond-outer">
+                <div class="fish-pond-content"></div>
+                <div class="fish-pond-content"></div>
+                <div class="fish-pond-grass"></div>
+                <div class="fish-pond-inner">
+                    <div class="fish-pond-water"></div>
+                </div>
+            </div>   
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Kolam 2</legend>
+        <div class="fish-pond">
+            <div class="feeder-controller-container">
+                <div class="feeder-controller"></div>
+                <div class="feeder-controller"></div>
+            </div>
+            <div class="fish-pond-outer">
+                <div class="fish-pond-content"></div>
+                <div class="fish-pond-content"></div>
+                <div class="fish-pond-grass"></div>
+                <div class="fish-pond-inner">
+                    <div class="fish-pond-water"></div>
+                </div>
+            </div>   
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Kolam 3</legend>
+        <div class="fish-pond">
+            <div class="feeder-controller-container">
+                <div class="feeder-controller"></div>
+                <div class="feeder-controller"></div>
+            </div>
+            <div class="fish-pond-outer">
+                <div class="fish-pond-content"></div>
+                <div class="fish-pond-content"></div>
+                <div class="fish-pond-grass"></div>
+                <div class="fish-pond-inner">
+                    <div class="fish-pond-water"></div>
+                </div>
+            </div>   
+        </div>
+    </fieldset>
+
+    
+    <script>
+        // touchstart events when you first press the screen with
+        // your finger
+        
+  
+    </script>
+
+</body>
+</html>
