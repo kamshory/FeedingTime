@@ -183,11 +183,9 @@
                 snap = parseFloat($(this).val());
             });
             createBackground();
-
             $('.feeding-time').find('.feeding-time-item').each(function(idx){
                 initFeedingTime($(this), idx);
             });
-
             $(document).on('mousedown', '.feeding-time .feeding-time-item', function(e2){
                 onMouseDown($(this));
             });
@@ -204,12 +202,9 @@
                 onMouseMove($(this), e2, e2.pageX, e2.pageY);
             });
             $(document).on("touchstart", '.feeding-time .feeding-time-item', function(e2) {
-                document.documentElement.style.overflow = 'hidden';
                 e2.stopPropagation();
-                //var changedTouches = e2.originalEvent.changedTouches;               
-                //var touch = changedTouches[0];
+                document.documentElement.style.overflow = 'hidden';
                 onMouseDown($(this));
-                //onMouseMove($(this), e2, touch.pageX, touch.pageY);
                 var time = $(this).attr('data-title')
                 $('.time-preview').text(time);
                 $('.time-preview').css('display', 'block');
@@ -221,9 +216,9 @@
                 onMouseMove($(this), e2, touch.pageX, touch.pageY);
             });            
             $(document).on("touchend", '.feeding-time', function(e2) {
-                document.documentElement.style.overflow = 'auto';
                 e2.stopPropagation();
                 e2.preventDefault();           
+                document.documentElement.style.overflow = 'auto';
                 onMouseUp($(this));
             });          
             $(document).on("touchcancel", '.feeding-time', function(e) {
@@ -239,7 +234,6 @@
             });
             $(document).on('click', '.feeder-controller > a', function(e2){
                 var id = $(this).attr('data-feeder-controller-id');
-                alert(id)
             });
         });
         function getMax(radius)
@@ -255,7 +249,6 @@
             var radius = obj.parent().width()/2;
             var centerX = radius;
             var centerY = radius;         
-            var rad = max - (18 * idx);
             var max = getMax(radius);
             var rad = getRadius(max, idx);
             obj.attr('data-idx', idx);
@@ -300,8 +293,8 @@
                 var clientY = y - container.offset().top;
                 var dx = clientX - centerX;
                 var dy = clientY - centerY;
-                var max = getMax(radius);
                 var idx = parseInt(obj.attr('data-idx'));
+                var max = getMax(radius);
                 var rad = getRadius(max, idx);
                 var angle = rad2ded(Math.atan2(dy, dx)) + 90;   
                 var time = angle2time(angle);
@@ -320,18 +313,17 @@
             var obj = container.find('.feeding-time-item[data-selected="true"]');
             if(snap > 0 && obj.length)
             {
-                var max = getMax(radius);
                 var idx = parseInt(obj.attr('data-idx'));
+                var max = getMax(radius);
                 var rad = getRadius(max, idx);
-                var angle = parseFloat(obj.find('input[type="hidden"]').val());   
+                var angle = parseFloat(obj.find('input[type="hidden"]').val() || '0');   
                 angle = fixAngle(angle); 
                 var seconds = angle2seconds(angle);
                 seconds = snapSecond(seconds, snap);
                 angle = seconds2Angle(seconds);
-                document.title = [angle]
                 var time = seconds2time(seconds);
                 $('.time-preview').text(time);
-                $('.time-preview').css('display', 'block');
+                $('.time-preview').css({'display':'block'});
                 obj.attr('data-title', time);
                 obj.find('input[type="hidden"]').val(angle);                 
                 renderTime(obj, centerX, centerY, rad, angle);
@@ -374,7 +366,7 @@
             obj1.find('.feeding-time-item').each(function(idx){          
                 var obj = $(this);
                 var rad = getRadius(max, idx);
-                var angle = parseFloat(obj.find('input[type="hidden"]').val());   
+                var angle = parseFloat(obj.find('input[type="hidden"]').val() || '0');   
                 angle += deg;
                 angle = fixAngle(angle);       
                 $(this).find('input[type="hidden"]').val(angle);
@@ -403,8 +395,8 @@
             {
                 hour = hour + 24;
             }
-            var dms = real2dms(hour);
-            var time = dmsFormat(dms);
+            var hms = real2hms(hour);
+            var time = dmsFormat(hms);
             return time;
         }
         function seconds2time(seconds)
@@ -414,30 +406,31 @@
             {
                 hour = hour + 24;
             }
-            var dms = real2dms(hour);
-            var time = dmsFormat(dms);
+            var hms = real2hms(hour);
+            var time = dmsFormat(hms);
             return time;
         }
-        function dmsFormat(dms)
+        function dmsFormat(hms)
         {
-            if(dms.d < 10)
+            if(hms.h < 10)
             {
-                dms.d = '0'+dms.d;
+                hms.h = '0'+hms.h;
             }
-            if(dms.m < 10)
+            if(hms.m < 10)
             {
-                dms.m = '0'+dms.m;
+                hms.m = '0'+hms.m;
             }
-            if(dms.s < 10)
+            if(hms.s < 10)
             {
-                dms.s = '0'+dms.s;
+                hms.s = '0'+hms.s;
             }
-            return dms.d+':'+dms.m+':'+dms.s;
+            return hms.h+':'+hms.m+':'+hms.s;
         }
-        function real2dms(deg) {
+        function real2hms(deg) 
+        {
             var absolute = Math.abs(deg);
-            var degrees = Math.floor(absolute);
-            var minutesNotTruncated = (absolute - degrees) * 60;
+            var hours = Math.floor(absolute);
+            var minutesNotTruncated = (absolute - hours) * 60;
             var minutes = Math.floor(minutesNotTruncated);
             var seconds = Math.round((minutesNotTruncated - minutes) * 60);
             if(seconds == 60)
@@ -448,13 +441,13 @@
             if(minutes == 60)
             {
                 minutes = 0;
-                degrees++;
+                hours++;
             }
-            if(degrees == 24)
+            if(hours == 24)
             {
-                degrees = 0;
+                hours = 0;
             }
-            return {d:degrees, m:minutes, s:seconds};
+            return {h:hours, m:minutes, s:seconds};
         }      
         function renderTime(obj, centerX, centerY, rad, angle)
         {
@@ -472,19 +465,20 @@
         }
         function createBackground()
         {
-            var min = Math.min(window.innerWidth) - 20;
-            if(min > 540)
+            var wWidth = window.innerWidth - 20;
+            if(wWidth > 540)
             {
-                min = 540;
+                wWidth = 540;
             }
-            var toolRad = min/2;
-            var toolWidth = toolRad * 2;
-            var toolHeight = toolRad * 2;
-            $('#canvas').attr({'width':toolWidth, 'height':toolHeight});
-            $('.feeding-time, .container, #canvas').css({'width':toolWidth, 'height':toolHeight});
+            wWidth = Math.abs(wWidth);
+            var tRad = wWidth/2;
+            var tWidth = tRad * 2;
+            var tHeight = tRad * 2;
+            $('#canvas').attr({'width':tWidth, 'height':tHeight});
+            $('.feeding-time, .container, #canvas').css({'width':tWidth, 'height':tHeight});
             var rad1 = 28;
-            var rad2 = toolRad - 30;
-            var rad3 = toolRad - 14;        
+            var rad2 = tRad - 30;
+            var rad3 = tRad - 14;        
             var canvas = $('#canvas')[0];
             var ctx = canvas.getContext('2d');
             ctx.font = "11px Arial"; 
@@ -515,7 +509,6 @@
                 ctx.fillText(time, px3, py3+5); 
             }
             ctx.stroke();
-
             ctx.strokeStyle = "#bbcccc";
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
@@ -590,10 +583,6 @@
         <button class="btn-sub">&lt;</button><button class="btn-add">&gt;</button>
     </span>
 
-    <style>
-        
-    </style>
-
     <fieldset>
         <legend>Kolam 1</legend>
         <div class="fish-pond">
@@ -648,14 +637,5 @@
             </div>   
         </div>
     </fieldset>
-
-    
-    <script>
-        // touchstart events when you first press the screen with
-        // your finger
-        
-  
-    </script>
-
 </body>
 </html>
