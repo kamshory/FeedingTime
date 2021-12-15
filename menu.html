@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Feed</title>
+    <style>
+        body{
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            font-size: 10px;
+        }
+        .wrapper{
+            white-space: nowrap;
+        }
+        .slider{
+            display: inline-block;
+            margin: 0;
+            box-sizing: border-box;
+            text-align: center;
+            position: relative;
+        }
+        
+        .slider .age{
+            padding-top: 10px;
+        }
+        .slider output{
+            position: absolute;
+            left: 0px;
+            text-align: center;
+            width: 100%;
+        }
+        .canvas{
+            position: absolute;
+            z-index: -1;
+            top: 2px;
+        }
+        
+    </style>
+    <script
+    src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+    crossorigin="anonymous"></script>
+    <script>
+var width = 900;
+var height = 400;
+var maxVal = 100;
+var count = 31;
+var offsetX = 23;
+var offsetY = height-48;
+var lStepX = (width-20)/count;
+var lStepY = (height-70) / maxVal;
+
+
+function linear()
+{
+    var firstVal = parseFloat($('.wrapper .slider:first-child input[type="range"]').val());
+    var lastVal = parseFloat($('.wrapper .slider:last-child input[type="range"]').val());
+    var count = $('.wrapper .slider').length;
+    var dy = (lastVal - firstVal) / (count-1);
+    $('.wrapper input[type="range"]').each(function(idx){
+        $(this).val(firstVal + (idx * dy))
+    });
+    update(selector);
+    showOutput(selector);
+}
+var selector = '#control';
+
+$(document).ready(function(e){
+
+   
+    var obj = $(selector);
+    createControl(obj, width, height, count, lStepX);
+
+    $(document).on('change', '.wrapper input[type="range"]', function(e1){
+        update(selector);
+    });
+    update(selector);
+    showOutput(selector);
+});
+
+function createControl(obj, width, height, count, lStepX)
+{
+    var html = ''
+    +'    <div class="canvas">'
+    +'        <canvas id="canvas" width="'+width+'" height="'+height+'"></canvas>'
+    +'    </div>';
+    html += '<div class="wrapper">';
+    for(var i = 0; i<count; i++)
+    {
+        html += '<div class="slider"><input type="range" step="0.1" min="0" max="100" value="0" orient="vertical" onchange="$(\'~ output\', this).val(value)" oninput="$(\'~ output\', this).val(value)"><output>50</output><div class="age">'+(i*10)+'</div></div>';
+    }
+    html += '</div>';
+    obj.append(html);
+    obj.find('canvas').css({'width':width, 'height':height});
+    obj.find('.slider').css({'width':lStepX});
+    obj.find('.wrapper').css({'padding-left':9, 'padding-top':4});
+    obj.find('output').css({'top':height-48})
+    obj.find('.slider input[type="range"]').css({'height':height-50})
+}
+
+/**
+ * Find point using canvas
+ * Not recommended
+ */ 
+function generateTable()
+{
+    var lCanvas = document.getElementById('canvas');
+    var ctx = lCanvas.getContext('2d');
+    ctx.beginPath();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#FF0000';
+    
+ 
+    var lStepX2 = 10;
+    var maxX = lStepX * 10;
+    var coord = [];
+    for(var x = offsetX, i = 0; x < maxX; x += lStepX2)
+    {
+        
+        for(var y = lCanvas.height; y >= 0; y-=1, i++)
+        {
+            var c = ctx.getImageData(x, y, 1, 1).data;
+            if(c[3] > 0)
+            {
+                coord.push({x:((x-offsetX)/lStepX2)+1, y:(offsetY-y)/lStepY})
+                if(i == 0)
+                {
+                    ctx.moveTo(x, y);
+                }
+                ctx.lineTo(x, y);
+                break;
+            }
+        }
+    }
+    ctx.stroke();
+    console.log(coord)
+}
+
+function showOutput(selector)
+{
+    $(selector).find('.slider').each(function(idx){
+        $(this).find('output').val($(this).find('input[type="range"]').val())     
+    });
+}
+
+function getData(selector)
+{
+    var data = [];
+    var idx = 0;
+    $(selector).find('.slider').each(function(e2){
+        data.push({x:parseInt(e2), y:parseFloat($(this).find('input[type="range"]').val())});
+        idx++;
+    });
+    return data;
+}
+
+function update(selector)
+{
+    var data = getData(selector);
+    var lineColor = "#555555";
+    var lTension = 1;
+    var drawPoint = true;
+    var lPointColor = "#FF0000";
+    drawSignalBezier(data, $(selector).find('canvas')[0], lineColor, lTension, drawPoint, lPointColor);
+}
+
+function getVisualData(data, offsetX, offsetY, lStepX, lStepY)
+{
+    var dataVisual = [];
+    for (i = 0; i < data.length; i++) {
+        x = offsetX + (data[i].x * lStepX);
+        y = offsetY - (data[i].y * lStepY);
+        dataVisual.push({x:x, y:y});   
+    }
+    return dataVisual;
+}
+
+/**
+ * Draw signal with Bezier
+ * @param {object} data Signal
+ * @param {object} lCanvas Canvas
+ * @param {string} lineColor Line color
+ * @param {number} lTension Bezier tension
+ * @param {boolean} drawPoint Draw point
+ * @param {string} lPointColor Point color
+ */
+function drawSignalBezier(data, lCanvas, lineColor, lTension, drawPoint, lPointColor) {
+    var ctx = lCanvas.getContext('2d');
+    ctx.clearRect(0, 0, lCanvas.width, lCanvas.height);
+    if (drawPoint) {
+        drawPoints(data, lCanvas, offsetX, offsetY, lStepX, lStepY, lPointColor);
+    }
+    if (data.length > 1) 
+    {
+        var length = data.length;
+        ctx.beginPath();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = lineColor;
+        var x = offsetX;
+        var y = offsetY - (data[0].y * lStepY);
+        ctx.moveTo(x, y);
+        var t = (lTension != null) ? lTension : 1;
+        var i;
+
+        var dataVisual = getVisualData(data, offsetX, offsetY, lStepX, lStepY);
+        /*
+        
+        for (i = 0; i < length - 1; i++) {
+            var p0 = (i > 0) ? dataVisual[i - 1] : dataVisual[0];
+            var p1 = dataVisual[i];
+            var p2 = dataVisual[i + 1];
+            var p3 = (i != length - 2) ? dataVisual[i + 2] : p2;
+
+            var cp1x = p1.x + (p2.x - p0.x) / 6 * t;
+            var cp1y = p1.y + (p2.y - p0.y) / 6 * t;
+
+            var cp2x = p2.x - (p3.x - p1.x) / 6 * t;
+            var cp2y = p2.y - (p3.y - p1.y) / 6 * t;
+
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+        }
+        ctx.stroke();
+        */
+        
+
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#FF0000';
+
+        var data2 = padData(dataVisual, dataVisual.length);
+        
+        for(x = 0; x<lCanvas.width; x++)
+        {
+            y = polynomialInterpolation(data2, x);
+            if(x == 0)
+            {
+                ctx.moveTo(x, y);
+            }
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+
+        var outputRange = count * 10;
+        var inputData = fixXData(data, 10);
+        var paddedData = padData(inputData, inputData.length);
+        var outputData = [];
+        for(x = 0; x<outputRange; x++)
+        {
+            y = polynomialInterpolation(paddedData, x);
+            outputData.push({x:x, y:y});
+        }
+        console.log(outputData);
+        
+    }
+}
+function fixXData(data, stepX)
+{
+    var data2 = [];
+    for(var i = 0; i < data.length; i++)
+    {
+        data2.push({x:Math.round(data[i].x * stepX), y:data[i].y});
+    }
+    return data2;
+}
+/**
+ * Padding point
+ * @param {object} data points
+ * @param {number} n how many points to be added at before and after
+ */
+function padData(data, n)
+{
+    var data2 = [];
+    var dx1 = data[1].x - data[0].x;
+    var dy1 = data[1].y - data[0].y;
+    var dx2 = data[data.length-1].x - data[data.length-2].x;
+    var dy2 = data[data.length-1].y - data[data.length-2].y;
+    var i;
+    for(i = n; i>0; i--)
+    {
+        data2.push({x:data[0].x - i*dx1, y:data[0].y - i*dy1})
+    }
+    for(i = 0; i<data.length; i++)
+    {
+        data2.push(data[i]);
+    }
+    for(i = 1; i<n; i++)
+    {
+        data2.push({x:data[data.length-1].x + i*dx2, y:data[data.length-1].y + i*dy2})
+    }
+    return data2;
+}
+
+function polynomialInterpolation(data, x)
+{
+    var y = 0;
+    var p = 0;
+    var i = 0;
+    var k = 0;
+    for(y = 0, i = 0; i < data.length ; i++)
+    {
+        for(p = 1, k = 0; k < data.length; k++)
+        {
+            if(k!= i) 
+            {
+                p *= (x-data[k].x)/(data[i].x-data[k].x);
+            }
+        }
+        y += data [i].y * p;
+    }
+    return y; 
+}
+
+/**
+ * Draw points
+ * @param {object} signal Signal
+ * @param {object} lCanvas Canvas
+ * @param {number} offsetX Offset X
+ * @param {number} offsetY Offset Y
+ * @param {number} lStepX Step X
+ * @param {number} lStepY Step Y
+ * @param {string} lPointColor Point color
+ */
+function drawPoints(signal, lCanvas, offsetX, offsetY, lStepX, lStepY, lPointColor) {
+    if (signal.length > 1) {
+        var length = signal.length;
+        var x = offsetX;
+        var y = offsetY - (signal[0].y * lStepY);
+        drawCoordinates(lCanvas, x, y, lPointColor);
+        for (var i = 1; i < length; i++) {
+            x = offsetX + (signal[i].x * lStepX);
+            y = offsetY - (signal[i].y * lStepY);
+            drawCoordinates(lCanvas, x, y, lPointColor);
+        }
+    }
+}
+
+/**
+ * Draw point with coordinate
+ * @param {object} lCanvas Canvas
+ * @param {number} x Coordinate X
+ * @param {number} y Coordinate Y
+ * @param {string} lPointColor Point color
+ */
+function drawCoordinates(lCanvas, x, y, lPointColor) {
+    var pointSize = 3;
+    var ctx = lCanvas.getContext('2d');
+    ctx.fillStyle = lPointColor;
+    ctx.beginPath();
+    ctx.arc(x, y, pointSize, 0, Math.PI * 2, true);
+    ctx.fill();
+}
+
+    </script>
+</head>
+<body>
+
+    <div id="control">
+
+    </div>
+
+</body>
+</html>
